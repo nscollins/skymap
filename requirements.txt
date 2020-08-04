@@ -8,6 +8,7 @@ flask-googlemaps==0.4.0
 future==0.18.2
 googleapis-common-protos==1.52.0
 grpcio==1.30.0
+gunicorn==20.0.4
 idna==2.10
 itsdangerous==1.1.0
 Jinja2==2.11.2
