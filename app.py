@@ -64,9 +64,9 @@ def reply():
 			skydb.update_photo(sender, pic_url)
 			# send the right message depending on whether there was a picture before
 			if skydb.photo_exists(sender):
-				return respond(f'Ok cool, it\'s fine to change your mind! We\'ll use this sky pic instead your previous one')			
+				return respond(f'Ok cool, it\'s fine to change your mind! We\'ll use this sky pic instead your previous one. Updated on https://sky-map.herokuapp.com/')			
 			else:
-				return respond(f'Sweet pic of the sky! Uploaded it to the map. Check it out at http://60f884add264.ngrok.io')
+				return respond(f'Sweet pic of the sky! Uploaded it to the map. Check it out at https://sky-map.herokuapp.com/')
 		
 		# doesn't look like a pic of the sky
 		else:
