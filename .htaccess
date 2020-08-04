@@ -1,0 +1,5 @@
+Options +ExecCGI
+AddHandler fcgid-script .fcgi
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !=/home8/nathali4/public_html/prototypes/skymap/flask_skymap.fcgi
+RewriteRule ^(.*)$ flask_skymap.fcgi/$1 [QSA,L]
