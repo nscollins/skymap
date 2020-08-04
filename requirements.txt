@@ -1,0 +1,6 @@
+flask
+twilio
+clarifai
+flask-googlemaps
+reverse_geocoder
+python-dotenv
