@@ -10,6 +10,17 @@
 <style>
     body { margin: 0; padding: 0; }
     #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+
+    .mapboxgl-popup-content {
+        width: 220px;
+        background-color: #4C4D4E;
+        padding: 10px 10px 5px;
+    }
+
+    .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip {
+        border-top-color: #4C4D4E;
+    }
+
 </style>
 </head>
 <body>
@@ -23,7 +34,7 @@
         container: 'map',
         style: 'mapbox://styles/nathaliecollins/ckdjq56cq0ep11iqrfz0wq4pj',
         center: [-122.431297, 37.773972],
-        zoom: 8
+        zoom: 10
     });
 
     // Add zoom and rotation controls to the map.
@@ -80,7 +91,7 @@
             // based on the feature found.
                 popup
                     .setLngLat(coordinates)
-                    .setHTML(description + '<br>' + photo)
+                    .setHTML(photo)
                     .addTo(map);
             });
              
