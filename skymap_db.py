@@ -10,15 +10,20 @@ __version__ = '0.0.1'
 
 class SkyMapDB:
 	# class attributes
+	dbname = ""
 	tablename = "entries"
 
 	# initialize a SkyMapDB object using the given sql database file
 	def __init__(self, filename):
+		self.dbname = filename
+
+	# connect to the database
+	def connect(self):
 		print("Trying to connect...", end =" ")
 		
 		# connect to the database + save handle to global
 		try:
-			self.db = sqlite3.connect(filename)
+			self.db = sqlite3.connect(self.dbname)
 			self.cur = self.db.cursor() # get cursor
 			self.cur.execute("CREATE TABLE IF NOT EXISTS entries (id INTEGER PRIMARY KEY AUTOINCREMENT, sender TEXT, latitude REAL, longitude REAL, region TEXT, country TEXT, photo_url TEXT)")
 			self.db.commit()
@@ -98,7 +103,7 @@ class SkyMapDB:
 		rows = self.cur.fetchall()
 		return rows
 
-	def close_connection(self):
+	def disconnect(self):
 		self.db.close()
 		print('close')
 
@@ -110,6 +115,6 @@ def main():
 	val = db_api.sender_exists(whatsapp_id)
 	print(f"Sender {whatsapp_id} exists in database: {val}")
 
-	db_api.close_connection()
+	db_api.disconnect()
 
 if __name__ == '__main__': main()
