@@ -6,6 +6,7 @@ from pprint import pprint   # makes payload look nicer to read
 from twilio.rest import Client
 from flask_googlemaps import GoogleMaps
 from flask_googlemaps import Map
+from geojson import FeatureCollection, Feature, Point, dumps
 from geocoder import get_location
 from image_classifier import get_tags
 from skymap_db import SkyMapDB
@@ -21,23 +22,6 @@ skydb = SkyMapDB(DATABASE)
 
 markers = []
 
-def get_db():
-	db = getattr(g, '_database', None)
-	if db is None:
-		db = g._database = sqlite3.connect(DATABASE)
-
-	# connect to the database + save handle to global
-	try:
-		cur = db.cursor() # get cursor
-		cur.execute("CREATE TABLE IF NOT EXISTS entries (id INTEGER PRIMARY KEY AUTOINCREMENT, sender TEXT, latitude REAL, longitude REAL, region TEXT, country TEXT, photo_url TEXT)")
-		db.commit()
-		print("success")
-
-	except Error as e:
-		print("error!")
-		print(e)
-	return db
-
 def respond(message):
     response = MessagingResponse()
     response.message(message)
@@ -46,6 +30,7 @@ def respond(message):
 
 @app.route('/webhook', methods=['POST'])
 def reply():
+	skydb.connect()
 
 	sender = request.form.get('From')
 	media_msg = request.form.get('NumMedia')    # 1 if its a picture 
@@ -64,7 +49,7 @@ def reply():
 			skydb.update_photo(sender, pic_url)
 			# send the right message depending on whether there was a picture before
 			if skydb.photo_exists(sender):
-				return respond(f'Ok cool, it\'s fine to change your mind! We\'ll use this sky pic instead your previous one. Updated on https://sky-map.herokuapp.com/')			
+				return respond(f'Ok cool, it\'s fine to change your mind! We\'ll use this sky pic instead of your previous one. Updated on https://sky-map.herokuapp.com/')			
 			else:
 				return respond(f'Sweet pic of the sky! Uploaded it to the map. Check it out at https://sky-map.herokuapp.com/')
 		
@@ -92,7 +77,9 @@ def reply():
 
 @app.route("/")
 def mapview():
+	skydb.connect()
 	rows = skydb.get_map_entries()	# list of sets of latitude, longitude, photo_url
+	collection = []		# list to store geojson featurecollection
 
 	for row in rows:
 		if row[2] is None:
@@ -100,30 +87,21 @@ def mapview():
 		else:
 			url_entry_pic = row[2]
 
-		markers.append({
-			'icon': 'http://maps.google.com/mapfiles/ms/icons/green-dot.png',
-			'lat': row[0], 
-			'lng': row[1],
-			'infobox': '<div id="bodyContent">' +
-                '<img src="' + url_entry_pic + '" alt = "sky" style="width:175px;height:220px;"></img>' + '</div>' 
-		})
-	mymap = Map(
-        identifier="sndmap",
-        style=(
-            "height:100%;"
-            "width:100%;"
-            "top:0;"
-            "position:absolute;"
-            "z-index:200;"
-            "zoom: -9999999;"
-        ),
-        # these coordinates re-center the map
-        lat=37.805355,
-        lng=-122.322618,
-        markers = markers,
-	)
-	return render_template('index.html', mymap=mymap)
+		# construct the geojson feature for this entry
+		img_tag = '<img src=\"' + url_entry_pic + '\"">'
+		props = {
+			'description': "",
+			'photo': img_tag
+		}
+		cur_feature = Feature(geometry=Point((row[1], row[0])), properties=props) # LongLat
+		collection.append(cur_feature)
+
+	feature_collection = FeatureCollection(collection)
+	# geojson dumps to convert FeatureCollection object into string
+	mapdata = dumps(feature_collection, sort_keys=True, indent=4)
+
+	return render_template('index.html', mapdata=mapdata)
  
-#@app.teardown_appcontext
-#def close_connection(exception):
-#	skydb.close_connection()
+@app.teardown_appcontext
+def close_connection(exception):
+	skydb.disconnect()
