@@ -5,104 +5,128 @@
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
     <title>Sky Map</title>
     <script src="https://api.mapbox.com/mapbox-gl-js/v1.11.1/mapbox-gl.js"></script>
-    <link href="https://api.mapbox.com/mapbox-gl-js/v1.11.1/mapbox-gl.css" rel="stylesheet" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.0/css/bulma.min.css">
-<style>
-    body { margin: 0; padding: 0; }
-    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+    <link href="https://api.mapbox.com/mapbox-gl-js/v1.11.1/mapbox-gl.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bulma@0.9.0/css/bulma.min.css" rel="stylesheet">
+    <link href="http://localhost:8000/skymap.css" rel="stylesheet">
+<!--
+    <link href="{{ url_for('static', filename='css/skymap.css') }}" rel="stylesheet">
 
-    .mapboxgl-popup-content {
-        width: 220px;
-        background-color: #4C4D4E;
-        padding: 10px 10px 5px;
-    }
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
 
-    .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip {
-        border-top-color: #4C4D4E;
-    }
+        .mapboxgl-popup-content {
+            width: 220px;
+            background-color: #4C4D4E;
+            padding: 10px 10px 5px;
+        }
 
-</style>
+        .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip {
+            border-top-color: #4C4D4E;
+        }
+    </style>
+-->
 </head>
 <body>
-<div id="map"></div>
- 
-<script>
-    mapboxgl.accessToken = 'pk.eyJ1IjoibmF0aGFsaWVjb2xsaW5zIiwiYSI6ImNqOGFjb2RjaTBlbDUyd28xOGxsbzIwaG8ifQ.MqZ-Qp1kIrsAZ8MYec8Vlw';
 
-    // instantiate a new map
-    var map = new mapboxgl.Map({
-        container: 'map',
-        style: 'mapbox://styles/nathaliecollins/ckdjq56cq0ep11iqrfz0wq4pj',
-        center: [-122.431297, 37.773972],
-        zoom: 10
-    });
+    <main>
+        <div class="box overlay"><h2>What does the sky look like where you are?</h2></div>    
+        <div id="map"></div>
+    </main>
+     
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoibmF0aGFsaWVjb2xsaW5zIiwiYSI6ImNqOGFjb2RjaTBlbDUyd28xOGxsbzIwaG8ifQ.MqZ-Qp1kIrsAZ8MYec8Vlw';
 
-    // Add zoom and rotation controls to the map.
-    map.addControl(new mapboxgl.NavigationControl());
+        // instantiate a new map
+        var map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/nathaliecollins/ckdjq56cq0ep11iqrfz0wq4pj',
+            center: [-122.431297, 37.773972],
+            zoom: 10
+        });
 
-    // add features from the geojson
-    map.on('load', function() {
-        map.loadImage(
-        '/static/heart_pin.png',
-        // Add an image to use as a custom marker
-        function(error, image) {
-            if (error) throw error;
-            map.addImage('custom-marker', image);
-             
-            map.addSource('places', {
-                'type': 'geojson',
-                'data': {{mapdata | safe}}
-            });
+        // Add zoom and rotation controls to the map.
+        map.addControl(new mapboxgl.NavigationControl());
 
-            // Add a layer showing the places.
-            map.addLayer({
-                'id': 'places',
-                'type': 'symbol',
-                'source': 'places',
-                'layout': {
-                    'icon-image': 'custom-marker',
-                    'icon-allow-overlap': true
-                }
-            });
-
-            // Create a popup, but don't add it to the map yet.
-            var popup = new mapboxgl.Popup({
-                closeButton: false,
-                closeOnClick: false,
-                offset: 25
-            });
-
-            map.on('mouseenter', 'places', function(e) {
-            // Change the cursor style as a UI indicator.
-                map.getCanvas().style.cursor = 'pointer';
+        // add features from the geojson
+        map.on('load', function() {
+            map.loadImage(
+            '/static/images/heart_pin.png',
+            // Add an image to use as a custom marker
+            function(error, image) {
+                if (error) throw error;
+                map.addImage('custom-marker', image);
                  
-                var coordinates = e.features[0].geometry.coordinates.slice();
-                var description = e.features[0].properties.description;
-                var photo = e.features[0].properties.photo;
+                map.addSource('places', {
+                    'type': 'geojson',
+                    'data': {{mapdata | safe}}
+                });
+
+                // Add a layer showing the places.
+                map.addLayer({
+                    'id': 'places',
+                    'type': 'symbol',
+                    'source': 'places',
+                    'layout': {
+                        'icon-image': 'custom-marker',
+                        'icon-allow-overlap': true
+                    }
+                });
+
+                // Create a popup, but don't add it to the map yet.
+                var popup = new mapboxgl.Popup({
+                    closeButton: false,
+                    closeOnClick: false,
+                    offset: 25
+                });
+
+                map.on('mouseenter', 'places', function(e) {
+                // Change the cursor style as a UI indicator.
+                    map.getCanvas().style.cursor = 'pointer';
+                     
+                    var coordinates = e.features[0].geometry.coordinates.slice();
+                    var description = e.features[0].properties.description;
+                    var photo = e.features[0].properties.photo;
+                     
+                    // Ensure that if the map is zoomed out such that multiple
+                    // copies of the feature are visible, the popup appears
+                    // over the copy being pointed to.
+                    while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+                        coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+                    }
                  
-                // Ensure that if the map is zoomed out such that multiple
-                // copies of the feature are visible, the popup appears
-                // over the copy being pointed to.
-                while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
-                    coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
-                }
-             
-            // Populate the popup and set its coordinates
-            // based on the feature found.
-                popup
-                    .setLngLat(coordinates)
-                    .setHTML(photo)
-                    .addTo(map);
-            });
-             
-            map.on('mouseleave', 'places', function() {
-                map.getCanvas().style.cursor = '';
-                popup.remove();
+                // Populate the popup and set its coordinates
+                // based on the feature found.
+                    popup
+                        .setLngLat(coordinates)
+                        .setHTML(photo)
+                        .addTo(map);
+                });
+                 
+                map.on('mouseleave', 'places', function() {
+                    map.getCanvas().style.cursor = '';
+                    popup.remove();
+                });
             });
         });
-    });
 
-</script>
+        var modal = document.querySelector('.modal');  // assuming you have only 1
+        var html = document.querySelector('html');
+        modal.classList.add('is-active');
+        html.classList.add('is-clipped');
+
+        modal.querySelector('.modal-background').addEventListener('click', function(e) {
+            e.preventDefault();
+            modal.classList.remove('is-active');
+            html.classList.remove('is-clipped');
+        });
+
+        modal.querySelector('.modal-close').addEventListener('click', function(e) {
+            e.preventDefault();
+            modal.classList.remove('is-active');
+            html.classList.remove('is-clipped');
+        });
+    </script>
  
 </body>
 </html>

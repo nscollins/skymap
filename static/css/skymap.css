@@ -1,0 +1,55 @@
+body { 
+	box-sizing: border-box;
+	margin: 0; 
+	padding: 0;
+}
+
+main {
+	position: absolute;
+	height: 100%;
+	width: 100%;
+	min-height: 100%;
+	min-width: 400px;
+	display: flex;
+	justify-content: center;
+}
+
+#map { 
+	position: absolute; 
+	top: 0; 
+	bottom: 0; 
+	width: 100%;
+}
+
+.mapboxgl-popup-content {
+    width: 220px;
+    background-color: #4C4D4E;
+    padding: 10px 10px 5px;
+}
+
+.mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip {
+    border-top-color: #4C4D4E;
+}
+
+h2 {
+	font-family: "Playfair Display";
+	font-size: 20px;
+	text-align: center;
+}
+
+.box {
+	background-color: #4c4d4e;
+	color: white;
+	padding: 14px;
+}
+
+.overlay {
+	position: absolute;
+	width: 420px;
+	height: 60px;
+	z-index: 10;
+	top: 20px;
+	display: block;
+}
+
+

@@ -13,7 +13,16 @@ from skymap_db import SkyMapDB
 
 load_dotenv()
 
-app = Flask(__name__)
+#TEMPLATE_DIR = os.path.abspath('../templates')
+#STATIC_DIR = os.path.abspath('../static')
+
+
+app = Flask(__name__,
+            static_folder='static',
+            static_url_path='/static',
+            template_folder='templates')
+
+#app = Flask(__name__)
 GoogleMaps(app, key='AIzaSyB7VuAqmj1mzTxJPcHp73MVk4-TGAUhmwI')
 client = Client()
 
