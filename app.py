@@ -6,8 +6,6 @@ from flask import Flask, request, render_template, g
 from twilio.twiml.messaging_response import MessagingResponse
 from pprint import pprint   # makes payload look nicer to read
 from twilio.rest import Client
-from flask_googlemaps import GoogleMaps
-from flask_googlemaps import Map
 from geojson import FeatureCollection, Feature, Point, dumps
 from geocoder import get_location
 from image_classifier import get_tags
@@ -103,9 +101,9 @@ def reply():
 			days_ago = (datetime.now() - datetime.fromtimestamp(entry['timestamp'])).days
 
 			if days_ago == 0:
-				return respond(f"Well, hello again! Didn't we just chat? Have a new location or picture to send me?")
+				return respond(f"Hey {entry['name']}! Didn't we just chat? Have a new location or picture to send me?")
 			else:
-				return respond(f"I've missed you! It's been {days_ago} days since we last talked. Send a new location if you're somewhere else and a fresh picture of the sky.")
+				return respond(f"I've missed you, {entry['name']}! It's been {days_ago} days since we last talked. Send a new location if you're somewhere else and a fresh picture of the sky.")
 		else:
 			return respond(f'Hi there! Send us your location through whatsapp to get started.')
 
