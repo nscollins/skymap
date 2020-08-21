@@ -1,5 +1,6 @@
 .DS_Store
 .env
+cred/
 data/
 data-bkp/
 templates/bkp/

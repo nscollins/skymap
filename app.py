@@ -1,5 +1,7 @@
 import os
+import time
 from dotenv import load_dotenv
+from datetime import datetime, timedelta
 from flask import Flask, request, render_template, g
 from twilio.twiml.messaging_response import MessagingResponse
 from pprint import pprint   # makes payload look nicer to read
@@ -9,27 +11,25 @@ from flask_googlemaps import Map
 from geojson import FeatureCollection, Feature, Point, dumps
 from geocoder import get_location
 from image_classifier import get_tags
-from skymap_db import SkyMapDB
+import firebase_admin
+from firebase_admin import credentials, db
 
 load_dotenv()
 
-#TEMPLATE_DIR = os.path.abspath('../templates')
-#STATIC_DIR = os.path.abspath('../static')
-
-
+# initialize the flask app
 app = Flask(__name__,
             static_folder='static',
             static_url_path='/static',
             template_folder='templates')
 
-#app = Flask(__name__)
-GoogleMaps(app, key='AIzaSyB7VuAqmj1mzTxJPcHp73MVk4-TGAUhmwI')
+# initialize the Twilio client interface
 client = Client()
 
-DATABASE = 'data/skymap.db'
-skydb = SkyMapDB(DATABASE)
-
-markers = []
+# initialize the firebase realtime database
+cred = credentials.Certificate("cred/skymap-firebase-cred.json")
+firebase_admin.initialize_app(cred, {
+	'databaseURL': 'https://sky-map-284203.firebaseio.com/'
+})
 
 def respond(message):
     response = MessagingResponse()
@@ -39,29 +39,38 @@ def respond(message):
 
 @app.route('/webhook', methods=['POST'])
 def reply():
-	skydb.connect()
+	ref = db.reference('/')
 
 	sender = request.form.get('From')
 	media_msg = request.form.get('NumMedia')    # 1 if its a picture 
 	message_latitude = request.values.get('Latitude')
 	message_longitude = request.values.get('Longitude')
 
+	sender_ref = ref.child(sender)
+
     # check if the user already sent in a pic. if they send something new, then update it
-	if media_msg == '1' and skydb.sender_exists(sender):
+	entry = sender_ref.get()
+
+	if media_msg == '1' and entry is not None:
 		pic_url = request.form.get('MediaUrl0')  # URL of the person's media
 		relevant_tags = get_tags(pic_url)
-
 		print("The tags for your picture are : ", relevant_tags.keys())
 
 		# check whether this is a picture of the sky and save to db if so
-		if 'sky' in relevant_tags or 'weather' in relevant_tags:
-			skydb.update_photo(sender, pic_url)
+		if 'sky' in relevant_tags or 'weather' in relevant_tags:			
 			# send the right message depending on whether there was a picture before
-			if skydb.photo_exists(sender):
+
+			already_existed = 'photo_url' in entry
+			sender_ref.update({
+				'photo_url': pic_url,
+				'timestamp': time.time()
+			})		
+
+			if already_existed:
 				return respond(f'Ok cool, it\'s fine to change your mind! We\'ll use this sky pic instead of your previous one. Updated on https://sky-map.herokuapp.com/')			
 			else:
 				return respond(f'Sweet pic of the sky! Uploaded it to the map. Check it out at https://sky-map.herokuapp.com/')
-		
+
 		# doesn't look like a pic of the sky
 		else:
 			pic_tags = list(relevant_tags.keys())
@@ -70,13 +79,29 @@ def reply():
 	# they've sent their location
 	elif message_latitude is not None and message_longitude is not None:
 		location = get_location(message_latitude, message_longitude)
-		skydb.add_entry(sender, message_latitude, message_longitude, location[0], location[1])
+		if entry is not None:
+			sender_ref.update({
+				'longitude': float(message_longitude),
+				'latitude': float(message_latitude),
+				'timestamp': time.time()				
+			})
+			print("I updated the entry")
+		else:
+			ref.update({
+				sender : {
+					'longitude': float(message_longitude),
+					'latitude': float(message_latitude),
+					'timestamp': time.time()
+				}
+			})
+			print("I added a new entry")
 		return respond(f'Cool, hope you\'re enjoying life in {location[0]} right now! Want to send us a pic of the sky there?')
 
 	# this isn't either a picture or a location - prompt them to send one of those
 	else:
-		if skydb.sender_exists(sender):
-			days_ago = skydb.last_interaction(sender)
+		if entry is not None:
+			days_ago = (datetime.now() - datetime.fromtimestamp(entry['timestamp'])).days
+
 			if days_ago == 0:
 				return respond(f"Well, hello again! Didn't we just chat? Have a new location or picture to send me?")
 			else:
@@ -84,17 +109,21 @@ def reply():
 		else:
 			return respond(f'Hi there! Send us your location through whatsapp to get started.')
 
+
 @app.route("/")
 def mapview():
-	skydb.connect()
-	rows = skydb.get_map_entries()	# list of sets of latitude, longitude, photo_url
+	ref = db.reference('/')
+	entries = ref.get()
+
 	collection = []		# list to store geojson featurecollection
 
-	for row in rows:
-		if row[2] is None:
-			url_entry_pic = 'https://s3-external-1.amazonaws.com/media.twiliocdn.com/ACa2dea70cb125daf20c4ac433be77eda4/d7a07ccac2cf9321e82559c82beff7ed'       # random filler pic
+	for sender in entries:
+		entry = entries[sender]
+
+		if 'photo_url' in entry:
+			url_entry_pic = entry['photo_url']
 		else:
-			url_entry_pic = row[2]
+			url_entry_pic = 'https://s3-external-1.amazonaws.com/media.twiliocdn.com/ACa2dea70cb125daf20c4ac433be77eda4/d7a07ccac2cf9321e82559c82beff7ed'       # random filler pic
 
 		# construct the geojson feature for this entry
 		img_tag = '<img src=\"' + url_entry_pic + '\"">'
@@ -102,7 +131,7 @@ def mapview():
 			'description': "",
 			'photo': img_tag
 		}
-		cur_feature = Feature(geometry=Point((row[1], row[0])), properties=props) # LongLat
+		cur_feature = Feature(geometry=Point((entry['longitude'], entry['latitude'])), properties=props) # LongLat
 		collection.append(cur_feature)
 
 	feature_collection = FeatureCollection(collection)
@@ -110,7 +139,3 @@ def mapview():
 	mapdata = dumps(feature_collection, sort_keys=True, indent=4)
 
 	return render_template('index.html', mapdata=mapdata)
- 
-@app.teardown_appcontext
-def close_connection(exception):
-	skydb.disconnect()
