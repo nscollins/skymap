@@ -24,10 +24,20 @@ app = Flask(__name__,
 client = Client()
 
 # initialize the firebase realtime database
-cred = credentials.Certificate("cred/skymap-firebase-cred.json")
+cred = credentials.Certificate({
+	'type': os.getenv('FIREBASE_TYPE'),
+	'private_key': os.getenv('FIREBASE_PRIVATE_KEY').replace("\\n", "\n"),
+	'client_email': os.getenv('FIREBASE_CLIENT_EMAIL'),
+	'token_uri': os.getenv('FIREBASE_TOKEN_URI')
+})
 firebase_admin.initialize_app(cred, {
 	'databaseURL': 'https://sky-map-284203.firebaseio.com/'
 })
+
+#cred = credentials.Certificate("cred/skymap-firebase-cred.json")
+#firebase_admin.initialize_app(cred, {
+#	'databaseURL': 'https://sky-map-284203.firebaseio.com/'
+#})
 
 def respond(message):
     response = MessagingResponse()
