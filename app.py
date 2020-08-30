@@ -14,6 +14,9 @@ from firebase_admin import credentials, db
 
 load_dotenv()
 
+MY_NUMBER = 'whatsapp:+14155238886'
+MAP_URL = 'http://sky-map.herokupapp.com'
+
 # initialize the flask app
 app = Flask(__name__,
             static_folder='static',
@@ -34,53 +37,8 @@ firebase_admin.initialize_app(cred, {
 	'databaseURL': 'https://sky-map-284203.firebaseio.com/'
 })
 
-#cred = credentials.Certificate("cred/skymap-firebase-cred.json")
-#firebase_admin.initialize_app(cred, {
-#	'databaseURL': 'https://sky-map-284203.firebaseio.com/'
-#})
 
-'''
-# current state key maps to next state value
-state = {
-	'greeting': 'name',
-	'name': 'location',
-	'location': 'photo',
-	'photo': 'complete'
-}
-'''
 
-map_url = 'http://sky-map.herokupapp.com'
-
-'''
-# dictionary of messages to send in different states
-messages = {
-	'greeting': {
-		'initial': 'Hi there! It\'s nice to meet you.',
-		'repeat': 'I\'ve missed you, {entry['name']}! I\'s been {days_ago} days since we last talked.'
-	},
-	'name': {
-		'initial': 'I\'m a robot. I don\'t really have a name, but I bet you do. What is it? Just first name, we can be friends.',
-		'repeat': 'Is that really your name? Seems hard to say. Tell me your first name again?',
-		'confirm': 'That\'s a pretty name, {entry['name']}.'
-	},
-	'location': {
-		'initial': 'Where in the world are you? Send me your location using the "+" on the bottom left to get started.',
-		'repeat': 'Ok, let\'s try this. Tap the "+" on the bottom left and choose Current Location from the list.',
-		'confirm': 'Cool, hope you\'re enjoying life in {location[0]} right now!'
-	},
-	'photo': {
-		'initial': 'Want to send me a pic of the sky there?',
-		'repeat': 'Hmm, that doesn\'t look like the sky.\n\nLooks like your picture includes {pic_tags}.\n\nTry again?',
-		'confirm': 'Sweet pic of the sky! Uploaded it to the map. Check it out at {map_url}'
-	},
-	'complete' : {
-		'initial': 'It\'s been a while since we\'ve talked. Have a new location or photo for me?',
-		'repeat': 'You keep coming to say hi. I like it. Want to update your location or photo?',
-		'confirm': 'Cool, I\'ll update that one the map. Check it out at {map_url}'
-	},
-	'confused': 'I didn\'t quite get that.'
-}
-'''
 
 def respond(message, askedname=0):
     twml = MessagingResponse()
@@ -88,27 +46,35 @@ def respond(message, askedname=0):
     resp = make_response(str(twml))
 
     # include a cookie that marks askedname to 1 for 2 hours if we just asked the name
-    expires = datetime.utcnow() + timedelta(hours=2)
+    expires = datetime.utcnow() + timedelta(hours=1)
     resp.set_cookie('askedname',value=str(askedname),expires=expires.strftime('%a, %d %b %Y %H:%M:%S GMT'))
-
     return resp	
 
 
-def remaining_info(db_entry_ref, prefix):
+def send(recipient, message_body):
+	message = client.messages \
+    .create(
+         body=message_body,
+         from_=MY_NUMBER,
+         to=recipient
+     )
+
+
+def remaining_info(db_entry_ref):
 	entry = db_entry_ref.get()		# pull the latest data from firebase
 
 	if 'name' not in entry:
 		# ask for the name
-		return respond(f'{prefix}\n\nWhat\'s your name again?', 1)
+		return respond(f'What\'s your name again?', 1)
 	elif 'latitude' not in entry or 'longitude' not in entry:
 		# ask for location
-		return respond(f'{prefix}\n\nWhere in the world are you? Send me your location using the "+" to the left of the message box.')
+		return respond(f'Where in the world are you? Send me your location using the "+" to the left of the message box.')
 	elif 'photo_url' not in entry:
 		# ask for the photo
-		return respond(f'{prefix}\n\nWant to send me a pic of the sky there?')
+		return respond(f'Want to send me a pic of the sky there?')
 	else:
 		# direct them to check out skymap
-		return respond(f'{prefix}\n\nCheck out {map_url}')
+		return respond(f'Check it out {MAP_URL}')
 
 
 @app.route('/webhook', methods=['POST'])
@@ -166,12 +132,10 @@ def reply():
 					})		
 
 					if already_existed:
-						prefix = f'Ok cool, it\'s fine to change your mind! We\'ll use this sky pic instead of your previous one.'			
-						#respond(f'Ok cool, it\'s fine to change your mind! We\'ll use this sky pic instead of your previous one. Updated on https://sky-map.herokuapp.com/')			
+						send(sender, f'Ok cool, it\'s fine to change your mind! We\'ll use this sky pic instead of your previous one.')			
 					else:
-						prefix = f'Sweet pic of the sky! Uploaded it to the map.'			
-						#respond(f'Sweet pic of the sky! Uploaded it to the map. Check it out at https://sky-map.herokuapp.com/')
-					return remaining_info(sender_ref, prefix)
+						send(sender, f'Sweet pic of the sky! Uploaded it to the map.')
+					return remaining_info(sender_ref)
 
 				# doesn't look like a pic of the sky
 				else:
@@ -189,8 +153,8 @@ def reply():
 				'latitude': float(message_latitude),
 				'timestamp': time.time()				
 			})
-			# respond(f'Cool, hope you\'re enjoying life in {location[0]} right now!')
-			return remaining_info(sender_ref, f'Cool, hope you\'re enjoying life in {location[0]} right now!')
+			send(sender, f'Cool, hope you\'re enjoying life in {location[0]} right now!')
+			return remaining_info(sender_ref)
 
 		# this might be the name response
 		elif 'name' not in entry and askedname == 1 and message_body != '':
@@ -198,8 +162,8 @@ def reply():
 				'name': message_body,
 				'timestamp': time.time()				
 			})
-			# respond(f'Nice to get to know you, {message_body}!')
-			return remaining_info(sender_ref, f'Nice to get to know you, {message_body}!')	
+			send(sender, f'Nice to get to know you, {message_body}!')
+			return remaining_info(sender_ref)	
 
 		# any other kind of message, probably text
 		else:
@@ -223,11 +187,6 @@ def mapview():
 
 	for sender in entries:
 		entry = entries[sender]
-
-#		if 'photo_url' in entry:
-#			url_entry_pic = entry['photo_url']
-#		else:
-#			url_entry_pic = 'https://s3-external-1.amazonaws.com/media.twiliocdn.com/ACa2dea70cb125daf20c4ac433be77eda4/d7a07ccac2cf9321e82559c82beff7ed'       # random filler pic
 
 		url_entry_pic = entry.get('photo_url', 'https://s3-external-1.amazonaws.com/media.twiliocdn.com/ACa2dea70cb125daf20c4ac433be77eda4/d7a07ccac2cf9321e82559c82beff7ed')
 
