@@ -6,3 +6,4 @@ data-bkp/
 templates/bkp/
 test/
 _old/
+venv/

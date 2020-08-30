@@ -95,11 +95,13 @@
                         coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
                     }
                  
-                // Populate the popup and set its coordinates
-                // based on the feature found.
+                    // Populate the popup and set its coordinates
+                    // based on the feature found.
+                    var popupHTML = photo + description;
+
                     popup
                         .setLngLat(coordinates)
-                        .setHTML(photo)
+                        .setHTML(popupHTML)
                         .addTo(map);
                 });
                  
