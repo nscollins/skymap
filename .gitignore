@@ -7,3 +7,4 @@ templates/bkp/
 test/
 _old/
 venv/
+__pycache__/
