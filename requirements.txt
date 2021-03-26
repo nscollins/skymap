@@ -37,7 +37,7 @@ PyJWT==1.7.1
 pyngrok==4.1.6
 python-dotenv==0.14.0
 pytz==2020.1
-PyYAML==5.3.1
+PyYAML==5.4
 requests==2.24.0
 reverse-geocoder==1.5.1
 rsa==4.6
