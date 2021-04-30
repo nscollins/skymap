@@ -40,7 +40,7 @@ pytz==2020.1
 PyYAML==5.3.1
 requests==2.24.0
 reverse-geocoder==1.5.1
-rsa==4.6
+rsa==4.7
 scipy==1.5.1
 six==1.15.0
 twilio==6.44.1
