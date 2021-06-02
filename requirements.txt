@@ -45,5 +45,5 @@ scipy==1.5.1
 six==1.15.0
 twilio==6.44.1
 uritemplate==3.0.1
-urllib3==1.25.10
+urllib3==1.26.5
 Werkzeug==1.0.1
